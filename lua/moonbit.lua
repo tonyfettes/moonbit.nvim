@@ -6,5 +6,7 @@ return {
     if has_treesitter and enable then
       require'moonbit.treesitter'.setup(treesitter_opts)
     end
+
+    require'language-server'.setup()
   end
 }
