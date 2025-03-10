@@ -2,6 +2,8 @@ local trim = function(s)
   return s:gsub('^%s*(.-)%s*$', '%1')
 end
 
+local path_sep = package.config:sub(1, 1)
+
 return {
   setup = function(opts)
     local treesitter_opts = opts.treesitter or {}
@@ -16,11 +18,20 @@ return {
       require("plenary.filetype").add_file("moonbit")
     end
 
+    local function find_lsp_cmd()
+      local moon_home = os.getenv('MOON_HOME')
+      if moon_home ~= nil then
+        return vim.fn.resolve(moon_home .. path_sep .. 'bin' .. path_sep .. 'lsp-server.js')
+      elseif vim.fn.executable('moonbit-lsp') then
+        return 'moonbit-lsp'
+      end
+    end
+
     if opts.lsp ~= false then
       local function on_attach(ev)
         vim.lsp.start(vim.tbl_deep_extend("keep", opts.lsp or {}, {
           name = 'moonbit-lsp',
-          cmd = { 'moonbit-lsp' },
+          cmd = { find_lsp_cmd() },
           root_dir = vim.fs.root(ev.buf, { 'moon.mod.json' }),
           commands = {
             ['moonbit-lsp/test'] = function(command, ctx)
