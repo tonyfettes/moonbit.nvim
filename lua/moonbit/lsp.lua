@@ -214,12 +214,21 @@ local commands = {
 
 local M = {}
 
+---@type vim.lsp.Config|nil
 local stored_config = nil
 
+---@param opts vim.lsp.Config|nil
 function M.setup(opts)
   stored_config = vim.tbl_deep_extend("keep", opts or {}, {
     cmd = { find_lsp_server() },
     commands = commands,
+    capabilities = {
+      workspace = {
+        didChangeWatchedFiles = {
+          dynamicRegistration = true,
+        },
+      },
+    },
   })
   if vim.lsp and vim.lsp.config then
     vim.lsp.config('moonbit-lsp', vim.tbl_deep_extend("keep", stored_config, {
