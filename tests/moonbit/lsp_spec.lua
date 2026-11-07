@@ -56,22 +56,39 @@ describe('lsp', function()
     end
   end)
 
-  it('uses the legacy server by default', function()
-    local legacy_lsp = make_moon_home('lsp-server.js')
+  it('uses moon-lsp by default', function()
+    local native_lsp = make_moon_home('moon-lsp')
 
     fresh_lsp().setup({})
 
     assert.are.equal('moonbit-lsp', captured_config.name)
-    assert.are.same({ legacy_lsp }, captured_config.config.cmd)
+    assert.are.same({ native_lsp, '--stdio' }, captured_config.config.cmd)
     assert.is_nil(captured_config.config.native)
   end)
 
-  it('uses moon-lsp when native is enabled', function()
-    local native_lsp = make_moon_home('moon-lsp')
+  it('detects project roots via moon.mod and moon.work', function()
+    make_moon_home('moon-lsp')
+    local root = vim.fn.tempname()
+    vim.fn.mkdir(root .. '/src/channel', 'p')
+    vim.fn.writefile({ 'name = "test/root"' }, root .. '/moon.mod')
+    vim.fn.writefile({ 'members = [ "." ]' }, root .. '/moon.work')
+    table.insert(tmpdirs, root)
 
-    fresh_lsp().setup({ native = true })
+    fresh_lsp().setup({})
 
-    assert.are.same({ native_lsp, '--stdio' }, captured_config.config.cmd)
+    assert.are.same({ 'moon.mod', 'moon.mod.json', 'moon.work' }, captured_config.config.root_markers)
+    assert.are.equal(
+      root,
+      vim.fs.root(root .. '/src/channel/channel.mbt', captured_config.config.root_markers)
+    )
+  end)
+
+  it('uses the legacy server when native is disabled', function()
+    local legacy_lsp = make_moon_home('lsp-server.js')
+
+    fresh_lsp().setup({ native = false })
+
+    assert.are.same({ legacy_lsp }, captured_config.config.cmd)
     assert.is_nil(captured_config.config.native)
   end)
 
@@ -79,7 +96,6 @@ describe('lsp', function()
     make_moon_home('moon-lsp')
 
     fresh_lsp().setup({
-      native = true,
       cmd = { 'custom-lsp' },
     })
 
@@ -91,7 +107,7 @@ describe('lsp', function()
     local lsp = fresh_lsp()
     local buf = vim.api.nvim_create_buf(false, true)
 
-    lsp.setup({ native = true })
+    lsp.setup({})
     vim.bo[buf].filetype = 'json'
     lsp.on_attach(buf)
 

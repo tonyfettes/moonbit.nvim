@@ -1,5 +1,8 @@
 local path_sep = package.config:sub(1, 1)
 
+---@type string[]
+local root_markers = { 'moon.mod', 'moon.mod.json', 'moon.work' }
+
 ---@return string
 local function get_moon_home()
   local moon_home = vim.env["MOON_HOME"]
@@ -44,7 +47,7 @@ end
 ---@param opts table?
 ---@return string[]
 local function find_lsp_command(opts)
-  if opts ~= nil and opts.native == true then
+  if opts == nil or opts.native ~= false then
     return find_native_lsp_command()
   end
   return find_legacy_lsp_command()
@@ -341,7 +344,7 @@ function M.setup(opts)
   if vim.lsp and vim.lsp.config then
     vim.lsp.config('moonbit-lsp', vim.tbl_deep_extend("keep", stored_config, {
       filetypes = { 'moonbit' },
-      root_markers = { 'moon.mod.json' },
+      root_markers = root_markers,
       capabilities = {
         workspace = {
           didChangeWatchedFiles = {
@@ -359,7 +362,7 @@ function M.on_attach(bufnr)
     if vim.bo[bufnr].filetype ~= 'moonbit' then
       vim.lsp.start(vim.tbl_deep_extend("keep", {
         name = 'moonbit-lsp',
-        root_dir = vim.fs.root(bufnr, { 'moon.mod.json' }),
+        root_dir = vim.fs.root(bufnr, root_markers),
       }, stored_config or {
         cmd = find_lsp_command(nil),
         commands = commands,
@@ -370,7 +373,7 @@ function M.on_attach(bufnr)
   if stored_config then
     vim.lsp.start(vim.tbl_deep_extend("keep", stored_config, {
       name = 'moonbit-lsp',
-      root_dir = vim.fs.root(bufnr, { 'moon.mod.json' }),
+      root_dir = vim.fs.root(bufnr, root_markers),
     }))
   end
 end
