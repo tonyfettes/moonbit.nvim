@@ -345,13 +345,6 @@ function M.setup(opts)
     vim.lsp.config('moonbit-lsp', vim.tbl_deep_extend("keep", stored_config, {
       filetypes = { 'moonbit' },
       root_markers = root_markers,
-      capabilities = {
-        workspace = {
-          didChangeWatchedFiles = {
-            dynamicRegistration = true,
-          },
-        },
-      },
     }))
     vim.lsp.enable('moonbit-lsp')
   end
