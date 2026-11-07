@@ -350,40 +350,62 @@ function M.setup(opts)
   end
 end
 
+---@param bufnr integer
+---@return integer? client_id
+local function start_client(bufnr)
+  if vim.lsp == nil or vim.lsp.start == nil then
+    return nil
+  end
+  if vim.lsp.config and type(vim.lsp.config) == 'table' then
+    local ok, config = pcall(function()
+      return vim.lsp.config['moonbit-lsp']
+    end)
+    if ok and config ~= nil then
+      return vim.lsp.start(config, { bufnr = bufnr })
+    end
+  end
+  local config = vim.tbl_deep_extend("keep", {
+    name = 'moonbit-lsp',
+    root_dir = vim.fs.root(bufnr, root_markers),
+  }, stored_config or {
+    cmd = find_lsp_command(nil),
+    commands = commands,
+  })
+  return vim.lsp.start(config, { bufnr = bufnr })
+end
+
 function M.on_attach(bufnr)
   if vim.lsp and vim.lsp.config then
     if vim.bo[bufnr].filetype ~= 'moonbit' then
-      vim.lsp.start(vim.tbl_deep_extend("keep", {
-        name = 'moonbit-lsp',
-        root_dir = vim.fs.root(bufnr, root_markers),
-      }, stored_config or {
-        cmd = find_lsp_command(nil),
-        commands = commands,
-      }))
+      start_client(bufnr)
     end
     return
   end
-  if stored_config then
-    vim.lsp.start(vim.tbl_deep_extend("keep", stored_config, {
-      name = 'moonbit-lsp',
-      root_dir = vim.fs.root(bufnr, root_markers),
-    }))
-  end
+  start_client(bufnr)
 end
 
 function M.restart()
   local clients = vim.lsp.get_clients({ name = 'moonbit-lsp' })
+  local bufs = {}
   for _, client in ipairs(clients) do
-    local bufs = vim.tbl_keys(client.attached_buffers)
-    client:stop()
-    vim.defer_fn(function()
-      for _, buf in ipairs(bufs) do
-        if vim.api.nvim_buf_is_valid(buf) then
-          M.on_attach(buf)
-        end
+    for buf in pairs(client.attached_buffers) do
+      bufs[buf] = true
+    end
+    local ns = vim.lsp.diagnostic.get_namespace(client.id)
+    if ns then
+      for buf in pairs(client.attached_buffers) do
+        vim.diagnostic.reset(ns, buf)
       end
-    end, 500)
+    end
+    client:stop()
   end
+  vim.defer_fn(function()
+    for buf in pairs(bufs) do
+      if vim.api.nvim_buf_is_valid(buf) then
+        start_client(buf)
+      end
+    end
+  end, 500)
 end
 
 return M
